@@ -1,51 +1,38 @@
-// App.tsx
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Button } from 'react-native';
+import Cell from '../components/Cell';
+import GameOverModal from '../components/GameOverModal'; // ✅ import modal
+import { checkWinner } from '../utils/checkWinner';
+import { COLORS } from '../constants/theme';
+import { useRouter } from 'expo-router';
 
-type Player = "x" | "o" | null;
+type Player = 'X' | 'O' | null;
 
-export default function App() {
+export default function GameScreen() {
   const [board, setBoard] = useState<Player[]>(Array(9).fill(null));
-  const [xTurn, setXTurn] = useState<boolean>(true);
+  const [xTurn, setXTurn] = useState(true);
+  const [winner, setWinner] = useState<Player>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
-  // Check winner function
-  const checkWinner = (board: Player[]): Player | null => {
-    const winPatterns: number[][] = [
-      [0, 1, 2],
-      [3, 4, 5],
-      [6, 7, 8],
-      [0, 3, 6],
-      [1, 4, 7],
-      [2, 5, 8],
-      [0, 4, 8],  
-      [2, 4, 6],
-    ];
-    for (let pattern of winPatterns) {
-      const [a, b, c] = pattern;
-      if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-        return board[a];
-      }
-    }
-    return null;
-  };
+  const router = useRouter();
 
   const handlePress = (index: number) => {
-    if (board[index]) return;
+    if (board[index] || modalVisible) return; // prevent clicks when modal is open
 
     const newBoard: Player[] = [...board];
-    newBoard[index] = xTurn ? "x" : "o";
+    newBoard[index] = xTurn ? 'X' : 'O';
     setBoard(newBoard);
 
-    const winner = checkWinner(newBoard);
-    if (winner) {
-      Alert.alert(`Player ${winner} wins!`);
-      resetGame();
+    const gameWinner = checkWinner(newBoard);
+    if (gameWinner) {
+      setWinner(gameWinner);
+      setModalVisible(true);
       return;
     }
 
     if (!newBoard.includes(null)) {
-      Alert.alert("It's a draw!");
-      resetGame();
+      setWinner(null); // draw
+      setModalVisible(true);
       return;
     }
 
@@ -55,53 +42,34 @@ export default function App() {
   const resetGame = () => {
     setBoard(Array(9).fill(null));
     setXTurn(true);
+    setModalVisible(false);
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.turnText}>Turn: {xTurn ? "Player1" : "Player2"}</Text>
+      <Text style={styles.turnText}>Turn: {xTurn ? 'X' : 'O'}</Text>
       <View style={styles.board}>
         {board.map((value, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.cell}
-            onPress={() => handlePress(index)}
-          >
-            <Text style={styles.cellText}>{value}</Text>
-          </TouchableOpacity>
+          <Cell key={index} value={value} onPress={() => handlePress(index)} />
         ))}
       </View>
+      <View style={styles.buttons}>
+        <Button title="Reset Game" onPress={resetGame} color={COLORS.secondary} />
+      </View>
+
+      {/* Modal Component */}
+      <GameOverModal
+        visible={modalVisible}
+        winner={winner}
+        onClose={resetGame}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f2f2f2",
-  },
-  turnText: {
-    fontSize: 24,
-    marginBottom: 20,
-  },
-  board: {
-    width: 300,
-    height: 300,
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  cell: {
-    width: 100,
-    height: 100,
-    borderWidth: 1,
-    borderColor: "#000",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  cellText: {
-    fontSize: 48,
-    fontWeight: "bold",
-  },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
+  turnText: { fontSize: 22, marginBottom: 20, color: COLORS.text },
+  board: { width: 300, height: 300, flexDirection: 'row', flexWrap: 'wrap' },
+  buttons: { marginTop: 20, width: '60%', justifyContent: 'space-between', height: 100 },
 });
